@@ -18,6 +18,7 @@ private:
     static const unsigned int COMMAND_BUFFER_SIZE = 10485760; // 10MB
     unsigned char* m_QueueBuffer;
     unsigned char* m_ExecuteBuffer;
+    unsigned int m_MaxCommands;
 
     std::mutex m_QueueBufferMutex;
     std::mutex m_ExecuteBufferMutex;
@@ -25,6 +26,8 @@ private:
 public:
     CommandQueue()
     {
+        m_MaxCommands = COMMAND_BUFFER_SIZE / sizeof(CommandFunc);
+
         // Create a 20MB buffer. Allocate 10MB to m_ExecuteBuffer and 10MB to m_QueueBuffer.
         // The first 4 bytes of the buffer is used to store the number of commands stored in the buffer.
         m_ExecuteBuffer = new unsigned char[COMMAND_BUFFER_SIZE * 2];
@@ -47,15 +50,14 @@ public:
         void* commandCountPtr = m_QueueBuffer; // Convert m_QueueBuffer to a void pointer.
         unsigned int commandCount = *static_cast<unsigned int*>(commandCountPtr); // Get the current number of commands queued.
 
-        // Get the position to insert the new command.
-        void* bufferPointer = m_QueueBuffer;
-        bufferPointer = static_cast<unsigned char*>(bufferPointer) + (sizeof(unsigned int) + sizeof(CommandFunc) * commandCount);
-        
-        if (bufferPointer >= (m_QueueBuffer + COMMAND_BUFFER_SIZE - sizeof(CommandFunc)))
+        if (commandCount == m_MaxCommands)
         {
             assert(false && "Insufficient Buffer Size In Command Queue!");
         }
 
+        // Get the position to insert the new command.
+        void* bufferPointer = m_QueueBuffer;
+        bufferPointer = static_cast<unsigned char*>(bufferPointer) + (sizeof(unsigned int) + sizeof(CommandFunc) * commandCount);
         *static_cast<CommandFunc*>(bufferPointer) = _commandFunc;
 
         // Add one to the commandCount.
